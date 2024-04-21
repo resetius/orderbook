@@ -42,7 +42,7 @@ void ExchangePq::processQueue(Q& queue, BookEntry& order, int direction) {
             break;
         }
         auto it = book.find(id);
-        if (it == book.end(id)) {
+        if (it == book.end()) {
           // deleted entry
           queue.pop();
           continue;
