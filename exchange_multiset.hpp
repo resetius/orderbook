@@ -29,6 +29,8 @@ private:
     std::multiset<BookEntry> asks;
     TradeReporter& reporter;
 
+    void process(BookEntry& entry, std::multiset<BookEntry>& match, std::multiset<BookEntry>& insert, int direction);
+
 public:
     ExchangeMultiset(TradeReporter& reporter) 
         : reporter(reporter) 

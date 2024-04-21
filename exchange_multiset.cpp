@@ -1,60 +1,41 @@
 #include "exchange_multiset.hpp"
 
+void ExchangeMultiset::process(BookEntry& entry, std::multiset<BookEntry>& match, std::multiset<BookEntry>& insert, int direction)
+{
+    auto it = match.begin();
+    while (it != match.end() && entry.size > 0 && (direction * (entry.price - it->price) >= 0)) {
+        Quantity tradeSize = std::min(entry.size, it->size);
+        entry.size -= tradeSize;
+        BookEntry updated_match = *it;
+        updated_match.size -= tradeSize;
+
+        if (direction == 1) {
+            reporter.on_trade(entry.id, it->price, tradeSize);
+            reporter.on_trade(it->id, it->price, tradeSize);
+        } else {
+            reporter.on_trade(it->id, it->price, tradeSize);
+            reporter.on_trade(entry.id, it->price, tradeSize);
+        }
+
+        match.erase(it);
+        if (updated_match.size > 0) {
+            match.insert(updated_match);
+        }
+        it = match.begin();
+    }
+    if (entry.size > 0) {
+        insert.insert(entry);
+    }
+}
 
 void ExchangeMultiset::add(OrderId id, Side side, Price price, Quantity quantity) {
     BookEntry entry = {id, side, price, quantity, currentTime++};
 
     if (side == Side::Bid) {
-        auto it = asks.begin();
-        while (it != asks.end() && entry.size > 0) {
-            if (entry.price >= it->price) {
-                Quantity tradeSize = std::min(entry.size, it->size);
-                entry.size -= tradeSize;
-                BookEntry updated_ask = *it;
-                updated_ask.size -= tradeSize;
-
-                reporter.on_trade(entry.id, it->price, tradeSize);
-                reporter.on_trade(it->id, it->price, tradeSize);
-
-                asks.erase(it);
-                if (updated_ask.size > 0) {
-                    asks.insert(updated_ask);
-                }
-                if (entry.size == 0) break;
-            } else {
-                break;
-            }
-            it = asks.begin();
-        }
-        if (entry.size > 0) {
-            bids.insert(entry);
-        }
-    } else { // Side::ASK
-        auto it = bids.begin();
-        while (it != bids.end() && entry.size > 0) {
-            if (it->price >= entry.price) {
-                Quantity tradeSize = std::min(entry.size, it->size);
-                entry.size -= tradeSize;
-                BookEntry updated_bid = *it;
-                updated_bid.size -= tradeSize;
-
-                reporter.on_trade(it->id, it->price, tradeSize);
-                reporter.on_trade(entry.id, it->price, tradeSize);
-
-                bids.erase(it);
-                if (updated_bid.size > 0) {
-                    bids.insert(updated_bid);
-                }
-                if (entry.size == 0) break;
-            } else {
-                break;
-            }
-            it = bids.begin();
-        }
-        if (entry.size > 0) {
-            asks.insert(entry);
-        }
-    }
+        process(entry, asks, bids, 1);
+    } else { // Side::Ask
+        process(entry, bids, asks, -1);
+    }   
 }
 
 void ExchangeMultiset::erase(OrderId id) {
